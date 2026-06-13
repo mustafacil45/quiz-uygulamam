@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "TrendQuiz",
+    "slug": "trendquiz",
+    "version": "1.0.0",
+    "platforms": ["ios", "android", "web"],
+    "extra": {
+      "API_BASE": ""
+    },
+    "ios": {
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
+    },
+    "android": {
+      "usesCleartextTraffic": true
+    }
+  }
+}

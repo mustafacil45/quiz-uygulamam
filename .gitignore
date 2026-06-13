@@ -1,0 +1,15 @@
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.db
+*.sqlite3
+.DS_Store
+.env
+.next/
+dist/
+build/
+coverage/
+.expo/
+admin-panel/out/
+*.log
