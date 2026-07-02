@@ -15,6 +15,8 @@ export default function EditQuizModal({ isOpen, onClose, onSuccess, quiz }: Prop
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [roomId, setRoomId] = useState<number | null>(null);
+  const [isRetakeable, setIsRetakeable] = useState(false);
+  const [scoringMode, setScoringMode] = useState('first_score');
   const [rooms, setRooms] = useState<any[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
 
@@ -24,6 +26,8 @@ export default function EditQuizModal({ isOpen, onClose, onSuccess, quiz }: Prop
         setTitle(quiz.title);
         setDescription(quiz.description);
         setRoomId(quiz.room_id || null);
+        setIsRetakeable((quiz as any).is_retakeable || false);
+        setScoringMode((quiz as any).scoring_mode || 'first_score');
         setQuestions(quiz.questions || []);
     }
   }, [isOpen, quiz]);
@@ -53,6 +57,25 @@ export default function EditQuizModal({ isOpen, onClose, onSuccess, quiz }: Prop
     setQuestions(questions.filter((_, i) => i !== index));
   };
 
+  const [uploadingImageFor, setUploadingImageFor] = useState<number | null>(null);
+
+  const handleImageUpload = async (qIndex: number, file: File) => {
+    try {
+      setUploadingImageFor(qIndex);
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/upload/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      updateQuestion(qIndex, 'image_url', res.data.url);
+    } catch (err) {
+      console.error(err);
+      alert('Resim yüklenemedi');
+    } finally {
+      setUploadingImageFor(null);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quiz) return;
@@ -63,6 +86,8 @@ export default function EditQuizModal({ isOpen, onClose, onSuccess, quiz }: Prop
         description,
         room_id: roomId as any,
         is_featured: (quiz as any).is_featured ?? false,
+        is_retakeable: isRetakeable,
+        scoring_mode: scoringMode,
         questions
       });
       onSuccess();
@@ -76,9 +101,9 @@ export default function EditQuizModal({ isOpen, onClose, onSuccess, quiz }: Prop
   if (!isOpen || !quiz) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-slate-900 w-full max-w-4xl rounded-xl border border-slate-700 shadow-2xl my-8">
-        <div className="p-6 border-b border-slate-700 flex justify-between items-center sticky top-0 bg-slate-900 rounded-t-xl z-10">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 p-2 md:p-4 overflow-y-auto flex justify-center items-start">
+      <div className="bg-slate-900 w-full max-w-4xl mx-auto rounded-xl border border-slate-700 shadow-2xl my-4 md:my-8 flex flex-col">
+        <div className="p-6 border-b border-slate-700 flex justify-between items-center sticky top-0 bg-slate-900 rounded-t-xl z-20">
           <h2 className="text-xl font-bold text-white">Quiz Düzenle: {quiz.title}</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-white"><X size={24} /></button>
         </div>
@@ -124,6 +149,52 @@ export default function EditQuizModal({ isOpen, onClose, onSuccess, quiz }: Prop
                 rows={2}
               />
             </div>
+
+            {/* Tekrar Çözülebilirlik Seçeneği */}
+            <div className="md:col-span-2 bg-slate-800/30 border border-slate-700/50 p-4 rounded-lg space-y-4">
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="retakeable"
+                  checked={isRetakeable}
+                  onChange={e => setIsRetakeable(e.target.checked)}
+                  className="accent-blue-500 w-4 h-4 cursor-pointer"
+                />
+                <label htmlFor="retakeable" className="text-sm font-medium text-slate-300 cursor-pointer flex-1">
+                  ✓ Quizi Tekrar Çözülebilir Yap
+                </label>
+              </div>
+
+              {isRetakeable && (
+                <div className="pl-7 space-y-3 border-l-2 border-blue-500/50">
+                  <label className="block text-sm font-medium text-slate-400">Puanlama Modu:</label>
+                  <div className="flex flex-col gap-2">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="scoringMode"
+                        value="first_score"
+                        checked={scoringMode === 'first_score'}
+                        onChange={e => setScoringMode(e.target.value)}
+                        className="accent-green-500"
+                      />
+                      <span className="text-sm text-slate-300">📍 İlk Çözülen Puan (First Score)</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="scoringMode"
+                        value="best_score"
+                        checked={scoringMode === 'best_score'}
+                        onChange={e => setScoringMode(e.target.value)}
+                        className="accent-green-500"
+                      />
+                      <span className="text-sm text-slate-300">🏆 En Yüksek Puan (Best Score)</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="border-t border-slate-700 pt-6">
@@ -159,6 +230,33 @@ export default function EditQuizModal({ isOpen, onClose, onSuccess, quiz }: Prop
                       className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white text-sm"
                       placeholder="Soru metnini giriniz..."
                     />
+                    
+                    {/* Image Upload */}
+                    <div className="mt-3 flex items-center gap-3">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        id={`editQImage-${qIndex}`}
+                        className="hidden"
+                        onChange={e => {
+                          if (e.target.files?.[0]) {
+                            handleImageUpload(qIndex, e.target.files[0]);
+                          }
+                        }}
+                      />
+                      <label htmlFor={`editQImage-${qIndex}`} className="cursor-pointer px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-xs text-white transition flex items-center gap-1">
+                        {uploadingImageFor === qIndex ? 'Yükleniyor...' : 'Görsel Ekle / Değiştir'}
+                      </label>
+                      {q.image_url && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-green-400 truncate max-w-[150px]">Görsel mevcut</span>
+                          <img src={`${api.defaults.baseURL}${q.image_url}`} alt="Q" className="h-8 w-8 object-cover rounded border border-slate-600" />
+                          <button type="button" onClick={() => updateQuestion(qIndex, 'image_url', null)} className="text-red-400 hover:text-red-300 text-xs ml-1">
+                            Kaldır
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

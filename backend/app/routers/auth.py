@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -14,14 +14,7 @@ router = APIRouter()
 
 
 @router.post("/register", response_model=schemas.UserOut)
-async def register(request: Request, user: schemas.UserCreate, db: AsyncSession = Depends(get_db)):
-    # log raw body for diagnostics
-    try:
-        raw = await request.body()
-        print(f"[DEBUG] Raw register body length={len(raw)} body={raw[:500]}")
-    except Exception as e:
-        print('[DEBUG] Failed to read raw body', e)
-    print(f"[DEBUG] Register payload received: username={user.username} email={user.email} password_len={(len(user.password) if user.password is not None else 'None')}")
+async def register(user: schemas.UserCreate, db: AsyncSession = Depends(get_db)):
     res = await db.execute(select(models.User).where((models.User.username == user.username) | (models.User.email == user.email)))
     existing = res.scalar_one_or_none()
     if existing:
@@ -31,12 +24,14 @@ async def register(request: Request, user: schemas.UserCreate, db: AsyncSession 
     db.add(new)
     await db.commit()
     await db.refresh(new)
+    logger.info(f"New user registered: {new.username}")
     return new
 
 
 @router.post("/token", response_model=schemas.Token)
 async def token(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
-    res = await db.execute(select(models.User).where(models.User.username == form_data.username))
+    # Allow login with either username or email for convenience
+    res = await db.execute(select(models.User).where((models.User.username == form_data.username) | (models.User.email == form_data.username)))
     user = res.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
@@ -49,7 +44,7 @@ async def token(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
 
 @router.post("/admin/token", response_model=schemas.Token)
 async def admin_token(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
-    res = await db.execute(select(models.User).where(models.User.username == form_data.username))
+    res = await db.execute(select(models.User).where((models.User.username == form_data.username) | (models.User.email == form_data.username)))
     user = res.scalar_one_or_none()
     if not user or not security.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")

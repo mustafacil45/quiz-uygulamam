@@ -23,8 +23,19 @@ async def create_room(payload: schemas.RoomCreate, db: AsyncSession = Depends(ge
     # generate unique code
     import random
     import string
-    code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-    
+    # Generate a unique 4-digit code
+    code = None
+    for _ in range(20):
+        temp_code = ''.join(random.choices(string.digits, k=4))
+        res = await db.execute(select(models.Room).where(models.Room.code == temp_code))
+        if not res.scalar_one_or_none():
+            code = temp_code
+            break
+            
+    if not code:
+        # Fallback if 10000 rooms are exhausted or extremely unlucky
+        code = ''.join(random.choices(string.digits, k=6))
+
     room = models.Room(name=payload.name, host_id=current_user.id, is_private=payload.is_private, code=code)
     db.add(room)
     await db.flush()
@@ -91,8 +102,9 @@ async def list_rooms(q: str = None, db: AsyncSession = Depends(get_db)):
         stmt = select(models.Room).options(selectinload(models.Room.quizzes).selectinload(models.Quiz.questions)).options(selectinload(models.Room.members))
         
         if q:
-            # Search by name (partial) or code (exact)
-            stmt = stmt.where((models.Room.name.ilike(f"%{q}%")) | (models.Room.code == q))
+            q_clean = q.strip()
+            # Search by name (partial) or code (partial)
+            stmt = stmt.where((models.Room.name.ilike(f"%{q_clean}%")) | (models.Room.code.ilike(f"%{q_clean}%")))
             
         res = await db.execute(stmt)
         rooms = res.scalars().all()
@@ -129,7 +141,9 @@ async def list_rooms(q: str = None, db: AsyncSession = Depends(get_db)):
                     "description": q.description,
                     "room_id": q.room_id,
                     "questions": choices_data,
-                    "is_featured": q.is_featured
+                    "is_featured": q.is_featured,
+                    "is_retakeable": q.is_retakeable,
+                    "scoring_mode": q.scoring_mode
                 })
             
             # Count participants

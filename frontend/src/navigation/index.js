@@ -17,7 +17,16 @@ const Stack = createNativeStackNavigator()
 
 export default function RootStack() {
   return (
-    <Stack.Navigator initialRouteName="Welcome">
+    <Stack.Navigator 
+      initialRouteName="Welcome"
+      screenOptions={{
+        headerStyle: { backgroundColor: '#090816' },
+        headerTintColor: '#ffffff',
+        headerTitleStyle: { fontWeight: '800' },
+        headerShadowVisible: false,
+        headerBackTitleVisible: false,
+      }}
+    >
       <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
@@ -26,10 +35,14 @@ export default function RootStack() {
       <Stack.Screen name="Main" component={TabNavigator} options={{ headerShown: false }} />
 
       {/* Screens that should cover tabs */}
-      <Stack.Screen name="QuizSolve" component={QuizSolveScreen} />
-      <Stack.Screen name="RoomDetail" component={RoomDetailScreen} />
-      <Stack.Screen name="QuizCreator" component={QuizCreatorScreen} />
-      <Stack.Screen name="Duel" component={DuelScreen} />
+      <Stack.Screen name="QuizSolve" component={QuizSolveScreen} options={{ title: 'Quiz Çöz' }} />
+      <Stack.Screen 
+        name="RoomDetail" 
+        component={RoomDetailScreen} 
+        options={({ route }) => ({ title: route.params?.room?.name || 'Arena' })} 
+      />
+      <Stack.Screen name="QuizCreator" component={QuizCreatorScreen} options={{ title: 'Quiz Oluştur' }} />
+      <Stack.Screen name="Duel" component={DuelScreen} options={{ title: 'Düello' }} />
 
 
       <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ title: 'Liderlik Tablosu' }} />

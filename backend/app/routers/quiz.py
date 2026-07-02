@@ -54,7 +54,9 @@ async def create_quiz(payload: schemas.QuizCreate, db: AsyncSession = Depends(ge
         description=payload.description, 
         author_id=current_user.id, 
         room_id=payload.room_id,
-        is_featured=payload.is_featured
+        is_featured=payload.is_featured,
+        is_retakeable=payload.is_retakeable,
+        scoring_mode=payload.scoring_mode
     )
     db.add(quiz)
     await db.flush()
@@ -79,6 +81,8 @@ async def create_quiz(payload: schemas.QuizCreate, db: AsyncSession = Depends(ge
         "description": quiz.description,
         "room_id": quiz.room_id,
         "is_featured": quiz.is_featured,
+        "is_retakeable": quiz.is_retakeable,
+        "scoring_mode": quiz.scoring_mode,
         "questions": [
             {"id": q.id, "text": q.text, "choices": _json.loads(q.choices), "correct_choice": q.correct_choice, "image_url": q.image_url}
             for q in questions
@@ -144,6 +148,8 @@ async def list_quizzes(
             "description": quiz.description,
             "room_id": quiz.room_id,
             "is_featured": quiz.is_featured,
+            "is_retakeable": quiz.is_retakeable,
+            "scoring_mode": quiz.scoring_mode,
             "questions": [{"id": q.id, "text": q.text, "choices": _json.loads(q.choices), "correct_choice": q.correct_choice, "image_url": q.image_url} for q in qrows],
         })
     return out
@@ -164,6 +170,8 @@ async def get_quiz(quiz_id: int, db: AsyncSession = Depends(get_db)):
         "description": q.description, 
         "room_id": q.room_id, 
         "is_featured": q.is_featured,
+        "is_retakeable": q.is_retakeable,
+        "scoring_mode": q.scoring_mode,
         "questions": [{"id": qq.id, "text": qq.text, "choices": _json.loads(qq.choices), "correct_choice": qq.correct_choice, "image_url": qq.image_url} for qq in qrows]
     }
 
@@ -190,51 +198,117 @@ async def submit_answer_step(quiz_id: int, payload: schemas.AnswerSubmit, db: As
     # 2. Get or Create Result for (user, quiz)
     res_res = await db.execute(select(models.Result).where((models.Result.user_id == current_user.id) & (models.Result.quiz_id == quiz_id)))
     result = res_res.scalar_one_or_none()
-    
     if not result:
         result = models.Result(user_id=current_user.id, quiz_id=quiz_id, score=0, answers="{}")
         db.add(result)
         await db.flush()
-        
-    # 3. Load existing answers
-    current_answers = json.loads(result.answers) if result.answers else {}
-    initial_len = len(current_answers)
-    
-    # 4. Check if already answered — DELETE old answer to allow re-evaluation
-    #    (Previously bugged answers may have stored wrong correct values)
-    #    We now always re-evaluate the answer fresh.
-    
-    # 5. Calculate Score
+
+    # Load quiz to check retake/scoring policy and questions count
+    qres = await db.execute(select(models.Quiz).where(models.Quiz.id == quiz_id))
+    quiz = qres.scalar_one_or_none()
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+
+    # Load existing answers (represents last saved attempt or stored best/first depending on policy)
+    existing_answers = json.loads(result.answers) if result.answers else {}
+    # Avoid lazy-loading `quiz.questions` in async context; get question count directly from DB
+    qcount_res = await db.execute(select(func.count()).select_from(models.Question).where(models.Question.quiz_id == quiz_id))
+    q_count = int(qcount_res.scalar_one() or 0)
+    existing_completed = len(existing_answers) >= q_count if q_count > 0 else False
+    previous_score = int(result.score or 0)
+
+    # If quiz is NOT retakeable and user already has any answers (i.e. attempted), block updates
+    # Allow the quiz author to retake/modify their own quiz regardless of the flag
+    is_author = getattr(quiz, 'author_id', None) == current_user.id
+    if not quiz.is_retakeable and existing_answers and not is_author:
+        raise HTTPException(status_code=403, detail='This quiz is not retakeable')
+
+    # 3. Calculate this step's score
     is_correct = (user_answer == correct_answer)
-    score = 0
+    step_score = 0
     if is_correct:
         time_limit = 20.0
         spent = min(payload.time_spent, time_limit)
         remaining = time_limit - spent
-        score = int(80 + (remaining / time_limit) * 20)
-    
-    print(f'[SUBMIT-ANSWER] is_correct={is_correct} score={score}')
-    
-    # 6. Save Step Result
-    current_answers[str(payload.question_id)] = {
+        step_score = int(80 + (remaining / time_limit) * 20)
+
+    # Prepare tentative answers map for this in-progress attempt
+    tentative_answers = dict(existing_answers) if quiz.is_retakeable else {}
+    tentative_answers[str(payload.question_id)] = {
         "correct": bool(is_correct),
-        "score": score,
+        "score": step_score,
         "time_spent": payload.time_spent,
         "choice": user_answer
     }
-    
-    # 7. Update Total Score
-    new_total_score = sum(a["score"] for a in current_answers.values())
-    
-    result.answers = json.dumps(current_answers)
-    result.score = new_total_score
-         
+
+    tentative_total = sum(a["score"] for a in tentative_answers.values())
+
+    # Determine if this attempt would complete the quiz
+    tentative_completed = len(tentative_answers) >= q_count and q_count > 0
+
+    # Apply scoring policy
+    if quiz.is_retakeable:
+        if quiz.scoring_mode == 'first_score':
+            # If user has previously completed, keep that first score and do not overwrite
+            if existing_completed:
+                # Return previous stored values without changing DB
+                return {
+                    "correct": bool(is_correct),
+                    "score": step_score,
+                    "total_score": previous_score,
+                    "correct_choice": correct_answer
+                }
+            # Otherwise accept tentative answers (first completion will be stored)
+            # update result to tentative
+            result.answers = json.dumps(tentative_answers)
+            result.score = tentative_total
+
+        elif quiz.scoring_mode == 'best_score':
+            # If user has a prior completed score, only overwrite if tentative_total is higher
+            if existing_completed and previous_score >= tentative_total and not tentative_completed:
+                # No improvement and not completing a better attempt: do nothing
+                return {
+                    "correct": bool(is_correct),
+                    "score": step_score,
+                    "total_score": previous_score,
+                    "correct_choice": correct_answer
+                }
+            # If tentative attempt completes and is better than previous, store it
+            if tentative_completed:
+                if tentative_total > previous_score:
+                    result.answers = json.dumps(tentative_answers)
+                    result.score = tentative_total
+                else:
+                    # keep previous best answers/score
+                    pass
+            else:
+                # still in-progress attempt: update stored in-progress answers (do not affect best if exists)
+                # Use tentative_answers to allow user to continue attempt
+                result.answers = json.dumps(tentative_answers)
+                # Do not overwrite score yet unless it improves the best
+                if tentative_total > previous_score:
+                    result.score = tentative_total
+
+        else:
+            # default: behave like first_score
+            if not existing_completed:
+                result.answers = json.dumps(tentative_answers)
+                result.score = tentative_total
+    else:
+        # Not retakeable and no existing answers (we'd have returned earlier if answers existed)
+        # Accept the submission (first and only attempt)
+        result.answers = json.dumps(tentative_answers)
+        result.score = tentative_total
+
     await db.commit()
-    
+
+    # Determine total to return (if we kept previous best, use previous_score)
+    total_to_return = int(result.score or 0)
+
     return {
         "correct": bool(is_correct),
-        "score": score,
-        "total_score": new_total_score,
+        "score": step_score,
+        "total_score": total_to_return,
         "correct_choice": correct_answer
     }
 
@@ -245,6 +319,27 @@ async def delete_quiz(quiz_id: int, db: AsyncSession = Depends(get_db), current_
     quiz = res.scalar_one_or_none()
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
+
+    can_delete = False
+    from app.core.security import is_admin_user
+    if is_admin_user(current_user):
+        can_delete = True
+    elif getattr(quiz, 'author_id', None) == current_user.id:
+        can_delete = True
+    elif quiz.room_id:
+        res_room = await db.execute(select(models.Room).where(models.Room.id == quiz.room_id))
+        room = res_room.scalar_one_or_none()
+        if room and room.host_id == current_user.id:
+            can_delete = True
+        else:
+            res_ur = await db.execute(select(models.UserRoom).where((models.UserRoom.room_id == quiz.room_id) & (models.UserRoom.user_id == current_user.id)))
+            ur = res_ur.scalar_one_or_none()
+            if ur and ur.can_create_quiz:
+                can_delete = True
+
+    if not can_delete:
+        raise HTTPException(status_code=403, detail="You do not have permission to delete this quiz")
+
     await db.delete(quiz)
     await db.commit()
     return
@@ -261,6 +356,16 @@ async def update_quiz(quiz_id: int, payload: schemas.QuizCreate, db: AsyncSessio
     quiz.description = payload.description
     quiz.room_id = payload.room_id
     quiz.is_featured = payload.is_featured
+    # Persist retake and scoring settings if provided
+    try:
+        quiz.is_retakeable = payload.is_retakeable
+        quiz.scoring_mode = payload.scoring_mode
+    except Exception:
+        # payload may be an orm object or missing attrs; ignore silently
+        pass
+    
+    # Delete existing results since questions are changing completely
+    await db.execute(delete(models.Result).where(models.Result.quiz_id == quiz.id))
     
     # Delete existing questions
     await db.execute(delete(models.Question).where(models.Question.quiz_id == quiz.id))
@@ -285,5 +390,7 @@ async def update_quiz(quiz_id: int, payload: schemas.QuizCreate, db: AsyncSessio
         "description": quiz.description,
         "room_id": quiz.room_id,
         "is_featured": quiz.is_featured,
+        "is_retakeable": quiz.is_retakeable,
+        "scoring_mode": quiz.scoring_mode,
         "questions": [{"id": q.id, "text": q.text, "choices": _json.loads(q.choices), "correct_choice": q.correct_choice} for q in questions],
     }

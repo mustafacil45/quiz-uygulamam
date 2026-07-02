@@ -18,5 +18,5 @@ export const login = async (username: string, password: string) => {
 
 export const logout = () => {
   Cookies.remove('admin_token');
-  window.location.href = '/admin/login';
+  window.location.href = '/login';
 };

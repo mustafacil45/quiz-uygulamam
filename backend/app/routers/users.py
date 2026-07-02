@@ -95,6 +95,7 @@ async def read_user_rooms(db: AsyncSession = Depends(get_db), current_user: mode
         out.append({
             "id": r.id,
             "name": r.name,
+            "code": r.code,
             "is_private": r.is_private,
             "quizzes_count": len(r.quizzes) if r.quizzes else 0,
             "status": status # added status

@@ -7,7 +7,7 @@ from app import models
 from sqlalchemy import select
 
 def generate_code():
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    return ''.join(random.choices(string.digits, k=4))
 
 async def backfill():
     async with AsyncSessionLocal() as db:

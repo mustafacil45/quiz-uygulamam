@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: trendquiz-api
+    runtime: python
+    region: frankfurt     # EU'ya en yakın bölge
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    preDeployCommand: alembic upgrade head
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false       # Supabase PostgreSQL URL → Render dashboard'dan ekle
+      - key: REDIS_URL
+        sync: false       # Upstash Redis URL → Render dashboard'dan ekle
+      - key: SECRET_KEY
+        generateValue: true   # Render otomatik güvenli key üretir
+      - key: ALLOWED_ORIGINS
+        sync: false       # Vercel admin panel URL'i → dashboard'dan ekle
+      - key: ALLOWED_ORIGINS_REGEX
+        value: "https://trendquiz-admin.*\\.vercel\\.app"
+      - key: ADMIN_USER_ID
+        value: "1"
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "1440"
+      - key: PYTHONUNBUFFERED
+        value: "1"

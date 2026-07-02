@@ -51,6 +51,7 @@ class RoomCreate(BaseModel):
 class RoomOut(BaseModel):
     id: int
     name: str
+    code: Optional[str] = None
     host_id: Optional[int]
     is_private: bool
     participant_count: int = 0
@@ -65,6 +66,8 @@ class QuizCreate(BaseModel):
     description: Optional[str]
     room_id: Optional[int] = None
     is_featured: bool = False
+    is_retakeable: bool = False
+    scoring_mode: str = "first_score"
     questions: List[QuestionCreate] = []
 
 
@@ -74,6 +77,8 @@ class QuizOut(BaseModel):
     description: Optional[str]
     room_id: Optional[int]
     is_featured: bool
+    is_retakeable: bool = False
+    scoring_mode: str = "first_score"
     questions: List[QuestionOut] = []
 
     class Config:

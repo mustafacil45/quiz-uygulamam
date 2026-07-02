@@ -135,23 +135,29 @@ export default function RoomsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#090816' }}>
+      <View style={{ padding: 12 }}>
+        <View style={[styles.searchContainer, { flexDirection: 'row', alignItems: 'center' }]}>
+          <TextInput
+            style={[styles.searchBar, { flex: 1 }]}
+            placeholder="🔍 Arena Ara (İsim veya Kod ile)"
+            placeholderTextColor="#6b7280"
+            value={searchQuery}
+            onChangeText={(text) => setSearchQuery(text.toUpperCase())}
+            autoCapitalize="characters"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 8 }}>
+              <View style={{ backgroundColor: '#2d256b', borderRadius: 12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: '#a78bfa', fontSize: 12, fontWeight: '900' }}>✕</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
       {loading ? (
         <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 50 }} />
       ) : (
         <SectionList
-          ListHeaderComponent={
-            <View style={{ padding: 12 }}>
-              <View style={styles.searchContainer}>
-                <TextInput
-                  style={styles.searchBar}
-                  placeholder="🔍 Arena Ara (İsim veya Kod ile)"
-                  placeholderTextColor="#6b7280"
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                />
-              </View>
-            </View>
-          }
           sections={sections}
           keyExtractor={(item) => item.id + ''}
           renderItem={({ item }) => (

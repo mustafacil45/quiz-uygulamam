@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Animated, Image } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Animated, Image, ScrollView } from 'react-native'
 import services from '../api/services'
 import api from '../api/client'
 import { Ionicons } from '@expo/vector-icons'
@@ -137,80 +137,86 @@ export default function QuizSolveScreen({ route, navigation }) {
   const currentQ = quiz.questions[qIndex]
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.progress}>SORU {qIndex + 1} / {quiz.questions.length}</Text>
-        <View style={styles.scoreContainer}>
-          <Text style={styles.scoreLabel}>SKOR</Text>
-          <Text style={styles.score}>{totalScore}</Text>
+    <View style={{ flex: 1, backgroundColor: '#090816' }}>
+      <ScrollView 
+        style={{ flex: 1 }} 
+        contentContainerStyle={{ padding: 20, paddingTop: 60, paddingBottom: 80 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.progress}>SORU {qIndex + 1} / {quiz.questions.length}</Text>
+          <View style={styles.scoreContainer}>
+            <Text style={styles.scoreLabel}>SKOR</Text>
+            <Text style={styles.score}>{totalScore}</Text>
+          </View>
         </View>
-      </View>
 
-      {/* Timer Bar */}
-      <View style={styles.timerTrack}>
-        <View style={[styles.timerFill, { width: `${(timer / 20) * 100}%`, backgroundColor: timer < 5 ? '#ef4444' : '#22d3ee' }]} />
-      </View>
-      <Text style={[styles.timerText, { color: timer < 5 ? '#ef4444' : '#a78bfa' }]}>{timer} saniye kaldı</Text>
+        {/* Timer Bar */}
+        <View style={styles.timerTrack}>
+          <View style={[styles.timerFill, { width: `${(timer / 20) * 100}%`, backgroundColor: timer < 5 ? '#ef4444' : '#22d3ee' }]} />
+        </View>
+        <Text style={[styles.timerText, { color: timer < 5 ? '#ef4444' : '#a78bfa' }]}>{timer} saniye kaldı</Text>
 
-      {/* Question */}
-      <View style={styles.card}>
-        {currentQ.image_url && (
-          <Image
-            source={{ uri: currentQ.image_url.startsWith('http') ? currentQ.image_url : `${api.defaults.baseURL}${currentQ.image_url}` }}
-            style={styles.questionImage}
-            resizeMode="contain"
-          />
-        )}
-        <Text style={styles.questionText}>{currentQ.text}</Text>
-      </View>
+        {/* Question */}
+        <View style={styles.card}>
+          {currentQ.image_url && (
+            <Image
+              source={{ uri: currentQ.image_url.startsWith('http') ? currentQ.image_url : `${api.defaults.baseURL}${currentQ.image_url}` }}
+              style={styles.questionImage}
+              resizeMode="contain"
+            />
+          )}
+          <Text style={styles.questionText}>{currentQ.text}</Text>
+        </View>
 
-      {/* Choices */}
-      <View style={styles.choices}>
-        {currentQ.choices.map((c, idx) => {
-          let bg = '#151130'
-          let border = '#2d256b'
-          let textColor = '#ffffff'
-          let letterBg = 'rgba(255, 255, 255, 0.05)'
-          let letterColor = '#a78bfa'
+        {/* Choices */}
+        <View style={styles.choices}>
+          {currentQ.choices.map((c, idx) => {
+            let bg = '#151130'
+            let border = '#2d256b'
+            let textColor = '#ffffff'
+            let letterBg = 'rgba(255, 255, 255, 0.05)'
+            let letterColor = '#a78bfa'
 
-          if (status === 'feedback') {
-            if (idx === feedback.correctChoice) {
-              bg = '#10b981'
-              border = '#34d399'
-              textColor = '#090816'
-              letterBg = 'rgba(0, 0, 0, 0.1)'
-              letterColor = '#090816'
-            } else if (idx === feedback.userChoice && !feedback.correct) {
-              bg = '#ef4444'
-              border = '#f87171'
-              textColor = '#ffffff'
-              letterBg = 'rgba(0, 0, 0, 0.1)'
-              letterColor = '#ffffff'
-            } else {
-              bg = '#0f0c24'
-              border = '#1f1b44'
-              textColor = '#64748b'
-              letterColor = '#475569'
+            if (status === 'feedback') {
+              if (idx === feedback.correctChoice) {
+                bg = '#10b981'
+                border = '#34d399'
+                textColor = '#090816'
+                letterBg = 'rgba(0, 0, 0, 0.1)'
+                letterColor = '#090816'
+              } else if (idx === feedback.userChoice && !feedback.correct) {
+                bg = '#ef4444'
+                border = '#f87171'
+                textColor = '#ffffff'
+                letterBg = 'rgba(0, 0, 0, 0.1)'
+                letterColor = '#ffffff'
+              } else {
+                bg = '#0f0c24'
+                border = '#1f1b44'
+                textColor = '#64748b'
+                letterColor = '#475569'
+              }
             }
-          }
 
-          return (
-            <TouchableOpacity
-              key={idx}
-              style={[styles.choiceBtn, { backgroundColor: bg, borderColor: border }]}
-              disabled={status !== 'running'}
-              onPress={() => submitAnswer(idx)}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.choiceIcon, { backgroundColor: letterBg }]}>
-                <Text style={{ fontWeight: '900', color: letterColor }}>{['A', 'B', 'C', 'D'][idx]}</Text>
-              </View>
-              <Text style={[styles.choiceText, { color: textColor }]}>{c}</Text>
-            </TouchableOpacity>
-          )
-        })}
-      </View>
+            return (
+              <TouchableOpacity
+                key={idx}
+                style={[styles.choiceBtn, { backgroundColor: bg, borderColor: border }]}
+                disabled={status !== 'running'}
+                onPress={() => submitAnswer(idx)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.choiceIcon, { backgroundColor: letterBg }]}>
+                  <Text style={{ fontWeight: '900', color: letterColor }}>{['A', 'B', 'C', 'D'][idx]}</Text>
+                </View>
+                <Text style={[styles.choiceText, { color: textColor }]}>{c}</Text>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+      </ScrollView>
 
       {/* Feedback Overlay */}
       {status === 'feedback' && (

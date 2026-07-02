@@ -6,6 +6,8 @@ __pycache__/
 *.sqlite3
 .DS_Store
 .env
+.env.production
+.env.local
 .next/
 dist/
 build/
@@ -13,3 +15,7 @@ coverage/
 .expo/
 admin-panel/out/
 *.log
+backend/static/uploads/
+backend/dev.db
+backend/app.db
+

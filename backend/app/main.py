@@ -1,10 +1,10 @@
 import os
+import sqlalchemy as sa
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from dotenv import load_dotenv
-import os
 
 load_dotenv()
 
@@ -15,13 +15,25 @@ ADMIN_STATIC_DIR = os.path.join(BASE_DIR, "static", "admin")
 
 app = FastAPI(title="TrendQuiz Backend")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Production'da ALLOWED_ORIGINS env ile kontrol edilir
+# Örnek: ALLOWED_ORIGINS=https://trendquiz-admin.vercel.app,https://trendquiz.com
+_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+ALLOWED_ORIGINS = [o.strip() for o in _origins_env.split(",") if o.strip()] if _origins_env else ["*"]
+
+# Vercel preview domain'leri için regex desteği
+# Örnek: ALLOWED_ORIGINS_REGEX=https://trendquiz-admin.*\.vercel\.app
+_origins_regex = os.getenv("ALLOWED_ORIGINS_REGEX", "")
+
+_cors_kwargs = {
+    "allow_origins": ALLOWED_ORIGINS,
+    "allow_credentials": True,
+    "allow_methods": ["*"],
+    "allow_headers": ["*"],
+}
+if _origins_regex:
+    _cors_kwargs["allow_origin_regex"] = _origins_regex
+
+app.add_middleware(CORSMiddleware, **_cors_kwargs)
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(quiz.router, prefix="/api/quiz", tags=["quiz"])
@@ -42,51 +54,71 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.on_event("startup")
 async def startup_event():
-    from app.database import engine
+    from app.database import engine, DATABASE_URL
     from app import models
-    async with engine.begin() as conn:
-        await conn.run_sync(models.Base.metadata.create_all)
+    # Production'da Alembic migration kullanılır (Render pre-deploy: alembic upgrade head)
+    # Geliştirmede (SQLite) create_all() ile hızlı tablo oluşturma
+    if "sqlite" in DATABASE_URL:
+        async with engine.begin() as conn:
+            await conn.run_sync(models.Base.metadata.create_all)
 
 
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    from app.database import engine
+    import time
 
-# Mount Admin Panel Static Files
-# We mount at /admin
-# But we need to handle SPA routing (if user goes to /admin/dashboard directly, it should serve index.html)
+    checks = {"api": "ok", "database": "unknown", "redis": "unknown"}
 
-# Serve static assets (js, css, etc.)
-app.mount("/admin/_next", StaticFiles(directory=os.path.join(ADMIN_STATIC_DIR, "_next")), name="admin_next")
+    # Database check
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(sa.text("SELECT 1"))
+        checks["database"] = "ok"
+    except Exception as e:
+        checks["database"] = f"error: {type(e).__name__}"
 
-# Fallback for SPA routing in admin panel
-@app.get("/admin/{rest_of_path:path}")
-async def serve_admin(rest_of_path: str):
-    # Try to serve a file if it exists (e.g. favicon.ico)
-    file_path = os.path.join(ADMIN_STATIC_DIR, rest_of_path)
-    if os.path.isfile(file_path):
-        return FileResponse(file_path)
-    
-    # Check if it corresponds to an HTML file (Next.js export structure)
-    # e.g. /admin/login -> /admin/login.html
-    html_path = os.path.join(ADMIN_STATIC_DIR, f"{rest_of_path}.html")
-    if os.path.isfile(html_path):
-         return FileResponse(html_path)
+    # Redis check (non-critical)
+    try:
+        from app.ws_manager import manager
+        await manager.init_redis()
+        if manager.redis:
+            await manager.redis.ping()
+            checks["redis"] = "ok"
+        else:
+            checks["redis"] = "unavailable (fallback to local)"
+    except Exception as e:
+        checks["redis"] = f"error: {type(e).__name__}"
 
-    # For directory indices like /admin/dashboard -> /admin/dashboard/index.html
-    index_path = os.path.join(ADMIN_STATIC_DIR, rest_of_path, "index.html")
-    if os.path.isfile(index_path):
-        return FileResponse(index_path)
+    overall = "ok" if checks["database"] == "ok" else "degraded"
+    return {
+        "status": overall,
+        "version": "1.0.0",
+        "checks": checks,
+    }
 
-    # Otherwise return root index.html (SPA fallback) - NOT actually ideal for Next.js static export
-    # Next.js static export creates actual .html files for routes.
-    # If route is /admin/dashboard, Next generates /admin/dashboard.html (or /admin/dashboard/index.html)
-    # So we should rely on file existence mostly.
-    
-    # If nothing found, return 404 or redirect to /admin/
-    return FileResponse(os.path.join(ADMIN_STATIC_DIR, "index.html"))
+# Mount Admin Panel Static Files (only if exported build exists)
+# When admin panel is deployed to Vercel separately, these files won't exist on Render
+if os.path.isdir(ADMIN_STATIC_DIR):
+    _admin_next_dir = os.path.join(ADMIN_STATIC_DIR, "_next")
+    if os.path.isdir(_admin_next_dir):
+        app.mount("/admin/_next", StaticFiles(directory=_admin_next_dir), name="admin_next")
 
-@app.get("/admin")
-async def admin_root():
-    return FileResponse(os.path.join(ADMIN_STATIC_DIR, "index.html"))
+    @app.get("/admin/{rest_of_path:path}")
+    async def serve_admin(rest_of_path: str):
+        file_path = os.path.join(ADMIN_STATIC_DIR, rest_of_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        html_path = os.path.join(ADMIN_STATIC_DIR, f"{rest_of_path}.html")
+        if os.path.isfile(html_path):
+            return FileResponse(html_path)
+        index_path = os.path.join(ADMIN_STATIC_DIR, rest_of_path, "index.html")
+        if os.path.isfile(index_path):
+            return FileResponse(index_path)
+        return FileResponse(os.path.join(ADMIN_STATIC_DIR, "index.html"))
+
+    @app.get("/admin")
+    async def admin_root():
+        return FileResponse(os.path.join(ADMIN_STATIC_DIR, "index.html"))
+

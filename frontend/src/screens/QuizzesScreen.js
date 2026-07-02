@@ -36,30 +36,41 @@ export default function QuizzesScreen({ navigation }) {
     );
 
     const onStart = (quiz) => {
-        if (solvedIds.has(quiz.id)) {
+        const alreadySolved = solvedIds.has(quiz.id)
+        // If already solved
+        if (alreadySolved) {
+            // If quiz is not retakeable, inform user
+            if (!quiz.is_retakeable) {
+                Alert.alert('Tekrar Çözüm Yok', 'Bu quiz tekrar çözülemez.')
+                return
+            }
+
+            // Quiz is retakeable: show message based on scoring mode
+            const scoring = quiz.scoring_mode || 'first_score'
+            const msg = scoring === 'best_score'
+                ? 'Bu quiz tekrar çözülebilir. Yeni denemelerinizde en yüksek puanınız güncellenecektir. Tekrar çözmek istiyor musunuz?'
+                : 'Bu quiz tekrar çözülebilir ancak ilk tamamladığınız puan korunacaktır. Tekrar çözmek istiyor musunuz?'
+
             Alert.alert(
                 'Tekrar Çöz ⚡',
-                'Bu quizi daha önce çözdünüz. Tekrar çözebilirsiniz ancak puanınız değişmeyecektir (İlk puan geçerlidir).',
+                msg,
                 [
                     { text: 'İptal', style: 'cancel' },
                     { text: 'Tekrar Çöz', onPress: () => navigation.navigate('QuizSolve', { quizId: quiz.id, isRetake: true }) }
                 ]
-            );
-            return;
+            )
+            return
         }
+
+        // Not solved yet: start normal attempt
         navigation.navigate('QuizSolve', { quizId: quiz.id, isRetake: false })
     }
 
     const renderItem = ({ item }) => {
         const isSolved = solvedIds.has(item.id)
         return (
-            <View style={{ opacity: isSolved ? 0.65 : 1 }}>
-                <QuizCard quiz={item} onStart={onStart} />
-                {isSolved && (
-                    <View style={styles.solvedBadge}>
-                        <Text style={styles.solvedText}>TAMAMLANDI ✓</Text>
-                    </View>
-                )}
+            <View style={{ opacity: isSolved ? 0.65 : 1, width: '100%', marginBottom: 12 }}>
+                <QuizCard quiz={item} onStart={onStart} fullWidth={true} isSolved={isSolved} />
             </View>
         )
     }
@@ -81,22 +92,5 @@ export default function QuizzesScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#090816' },
-    solvedBadge: {
-        position: 'absolute',
-        top: 14,
-        right: 14,
-        backgroundColor: '#10b981',
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        borderRadius: 10,
-        borderWidth: 1.5,
-        borderColor: '#34d399',
-        zIndex: 10,
-        shadowColor: '#10b981',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.4,
-        shadowRadius: 4,
-    },
-    solvedText: { color: '#090816', fontWeight: '900', fontSize: 9, letterSpacing: 0.5 }
+    container: { flex: 1, backgroundColor: '#090816' }
 })

@@ -8,6 +8,7 @@
       "API_BASE": ""
     },
     "ios": {
+      "bundleIdentifier": "com.trendquiz.app",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
@@ -15,7 +16,12 @@
       }
     },
     "android": {
+      "package": "com.trendquiz.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#090816"
+      },
       "usesCleartextTraffic": true
     }
   }
 }
+

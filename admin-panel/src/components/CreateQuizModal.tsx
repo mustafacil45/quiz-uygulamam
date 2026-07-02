@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import api from '@/services/api';
-import { X, Plus, Trash, Check, Save } from 'lucide-react';
+import { X, Plus, Trash, Check, Save, Edit } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -21,6 +21,8 @@ export default function CreateQuizModal({ isOpen, onClose, onSuccess }: Props) {
   const [description, setDescription] = useState('');
   const [roomId, setRoomId] = useState<number | null>(null);
   const [isFeatured, setIsFeatured] = useState(false);
+  const [isRetakeable, setIsRetakeable] = useState(false);
+  const [scoringMode, setScoringMode] = useState('first_score');
 
   const [rooms, setRooms] = useState<any[]>([]);
 
@@ -82,6 +84,18 @@ export default function CreateQuizModal({ isOpen, onClose, onSuccess }: Props) {
     setQuestions(questions.filter((_, i) => i !== idx));
   };
 
+  const editQuestion = (idx: number) => {
+    const q = questions[idx];
+    setQText(q.text);
+    setQImageUrl(q.image_url || null);
+    setQChoices([...q.choices]);
+    setQCorrect(q.correct_choice);
+    removeQuestion(idx);
+    
+    // Smooth scroll to builder
+    document.getElementById('question-builder')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   const handleSubmit = async () => {
     if (!title.trim()) return alert('Başlık gerekli');
     if (questions.length === 0) return alert('En az 1 soru ekleyin');
@@ -92,6 +106,8 @@ export default function CreateQuizModal({ isOpen, onClose, onSuccess }: Props) {
         description,
         room_id: roomId,
         is_featured: isFeatured,
+        is_retakeable: isRetakeable,
+        scoring_mode: scoringMode,
         questions
       });
       alert('Quiz oluşturuldu!');
@@ -101,6 +117,9 @@ export default function CreateQuizModal({ isOpen, onClose, onSuccess }: Props) {
       setTitle('');
       setDescription('');
       setRoomId(null);
+      setIsFeatured(false);
+      setIsRetakeable(false);
+      setScoringMode('first_score');
       setQuestions([]);
     } catch (e) {
       console.error(e);
@@ -111,14 +130,14 @@ export default function CreateQuizModal({ isOpen, onClose, onSuccess }: Props) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-slate-900 w-full max-w-4xl rounded-xl border border-slate-700 shadow-2xl my-8 flex flex-col max-h-[90vh]">
-        <div className="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-900 rounded-t-xl shrink-0">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 p-2 md:p-4 overflow-y-auto flex justify-center items-start">
+      <div className="bg-slate-900 w-full max-w-4xl rounded-xl border border-slate-700 shadow-2xl my-4 md:my-8 flex flex-col">
+        <div className="p-6 border-b border-slate-700 flex justify-between items-center sticky top-0 bg-slate-900 rounded-t-xl z-20">
           <h2 className="text-xl font-bold text-white">Yeni Quiz Oluştur</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-white"><X size={24} /></button>
         </div>
 
-        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+        <div className="p-6 flex-1 space-y-6">
           {/* Basic Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
@@ -154,10 +173,56 @@ export default function CreateQuizModal({ isOpen, onClose, onSuccess }: Props) {
                   ))}
                 </select>
               </div>
+
+              {/* Tekrar Çözülebilirlik Seçeneği */}
+              <div className="bg-slate-800/30 border border-slate-700/50 p-4 rounded-lg space-y-4">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="retakeable"
+                    checked={isRetakeable}
+                    onChange={e => setIsRetakeable(e.target.checked)}
+                    className="accent-blue-500 w-4 h-4 cursor-pointer"
+                  />
+                  <label htmlFor="retakeable" className="text-sm font-medium text-slate-300 cursor-pointer flex-1">
+                    ✓ Quizi Tekrar Çözülebilir Yap
+                  </label>
+                </div>
+
+                {isRetakeable && (
+                  <div className="pl-7 space-y-3 border-l-2 border-blue-500/50">
+                    <label className="block text-sm font-medium text-slate-400">Puanlama Modu:</label>
+                    <div className="flex flex-col gap-2">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="scoringMode"
+                          value="first_score"
+                          checked={scoringMode === 'first_score'}
+                          onChange={e => setScoringMode(e.target.value)}
+                          className="accent-green-500"
+                        />
+                        <span className="text-sm text-slate-300">📍 İlk Çözülen Puan (First Score)</span>
+                      </label>
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="scoringMode"
+                          value="best_score"
+                          checked={scoringMode === 'best_score'}
+                          onChange={e => setScoringMode(e.target.value)}
+                          className="accent-green-500"
+                        />
+                        <span className="text-sm text-slate-300">🏆 En Yüksek Puan (Best Score)</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Question Builder */}
-            <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
+            <div id="question-builder" className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
               <h3 className="text-md font-bold text-white mb-4 flex items-center gap-2">
                 <Plus size={16} className="text-green-400" /> Soru Ekle
               </h3>
@@ -245,9 +310,14 @@ export default function CreateQuizModal({ isOpen, onClose, onSuccess }: Props) {
                         ))}
                       </div>
                     </div>
-                    <button onClick={() => removeQuestion(idx)} className="text-slate-500 hover:text-red-400 transition">
-                      <Trash size={18} />
-                    </button>
+                    <div className="flex gap-2">
+                      <button onClick={() => editQuestion(idx)} className="text-slate-500 hover:text-blue-400 transition" title="Düzenle">
+                        <Edit size={18} />
+                      </button>
+                      <button onClick={() => removeQuestion(idx)} className="text-slate-500 hover:text-red-400 transition" title="Sil">
+                        <Trash size={18} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

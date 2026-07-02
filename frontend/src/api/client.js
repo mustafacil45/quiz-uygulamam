@@ -56,6 +56,11 @@ try {
   // Explicit override last (wins), so you can force any base URL.
   const explicit = getExpoExtraApiBase()
   if (explicit) API_BASE = explicit
+
+  // EAS build: EXPO_PUBLIC_API_BASE env variable (set in eas.json)
+  if (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_BASE) {
+    API_BASE = process.env.EXPO_PUBLIC_API_BASE
+  }
 } catch (e) {}
 
 

@@ -9,18 +9,34 @@ from sqlalchemy.orm import sessionmaker
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 DB_PATH = os.path.join(BASE_DIR, 'dev.db')
 
-# Use SQLite with absolute path to prevent re-creation or location issues
+# Default: SQLite for local development
 DATABASE_URL = f"sqlite+aiosqlite:///{DB_PATH}"
 
-# Allow override from env if specifically provided (e.g. for production) usually
-# but strictly default to the stable local file if missing.
+# Production: DATABASE_URL from environment (Supabase, Render, etc.)
+# Supabase provides postgresql:// → convert to postgresql+asyncpg://
 env_db = os.getenv("DATABASE_URL")
-if env_db and env_db.startswith("postgresql"):
+if env_db:
+    # Supabase/Render give "postgresql://..." — need async driver prefix
+    if env_db.startswith("postgres://"):
+        env_db = env_db.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif env_db.startswith("postgresql://") and "+asyncpg" not in env_db:
+        env_db = env_db.replace("postgresql://", "postgresql+asyncpg://", 1)
     DATABASE_URL = env_db
 
-print(f"Database URL: {DATABASE_URL}")
+_is_production = "asyncpg" in DATABASE_URL
+print(f"Database: {'PostgreSQL (production)' if _is_production else 'SQLite (development)'}")
 
-engine = create_async_engine(DATABASE_URL, future=True, echo=False)
+# PostgreSQL needs pool settings for free-tier connection limits
+_engine_kwargs = {"future": True, "echo": False}
+if _is_production:
+    _engine_kwargs.update({
+        "pool_size": 5,
+        "max_overflow": 2,
+        "pool_pre_ping": True,       # otomatik bağlantı kontrolü
+        "pool_recycle": 300,         # 5 dk sonra bağlantıyı yenile
+    })
+
+engine = create_async_engine(DATABASE_URL, **_engine_kwargs)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 async def get_db():

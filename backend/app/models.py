@@ -35,6 +35,8 @@ class Quiz(Base):
     author_id = Column(Integer, ForeignKey("users.id"))
     room_id = Column(Integer, ForeignKey("rooms.id"))  # <<< EKLENDİ
     is_featured = Column(Boolean, default=False)
+    is_retakeable = Column(Boolean, default=False)  # Tekrar çözülebilir mi?
+    scoring_mode = Column(String(20), default="first_score")  # "first_score" ya da "best_score"
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     room = relationship("Room", back_populates="quizzes")

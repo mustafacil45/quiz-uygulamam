@@ -1,9 +1,9 @@
 import React from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 
-export default function QuizCard({ quiz, onStart }) {
+export default function QuizCard({ quiz, onStart, fullWidth, isSolved }) {
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, fullWidth && styles.fullWidthCard]}>
       <View style={styles.headerRow}>
         <Text style={styles.title} numberOfLines={2}>{quiz.title}</Text>
         <View style={[styles.badge, styles[`difficulty_${quiz.difficulty || 'medium'}`]]}>
@@ -11,7 +11,12 @@ export default function QuizCard({ quiz, onStart }) {
         </View>
       </View>
       <Text style={styles.desc} numberOfLines={3}>{quiz.description || 'Bu quiz için açıklama belirtilmemiş.'}</Text>
-      <View style={styles.footer}>
+      <View style={[styles.footer, isSolved && { justifyContent: 'space-between', flexDirection: 'row', alignItems: 'center' }]}>
+        {isSolved && (
+          <View style={styles.solvedBadge}>
+            <Text style={styles.solvedText}>TAMAMLANDI ✓</Text>
+          </View>
+        )}
         <TouchableOpacity style={styles.startBtn} onPress={() => onStart && onStart(quiz)} activeOpacity={0.8}>
           <Text style={styles.startBtnText}>BAŞLA ⚡</Text>
         </TouchableOpacity>
@@ -35,6 +40,11 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 5,
   },
+  fullWidthCard: {
+    width: 'auto',
+    alignSelf: 'stretch',
+    marginHorizontal: 4,
+  },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 6 },
   title: { fontSize: 16, fontWeight: '800', color: '#ffffff', flex: 1 },
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
@@ -49,4 +59,17 @@ const styles = StyleSheet.create({
     shadowColor: '#8b5cf6', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 5
   },
   startBtnText: { color: '#fff', fontWeight: '800', fontSize: 11 },
+  solvedBadge: {
+    backgroundColor: '#10b981',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#34d399',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+  },
+  solvedText: { color: '#090816', fontWeight: '900', fontSize: 9, letterSpacing: 0.5 }
 })

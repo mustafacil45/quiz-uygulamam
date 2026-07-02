@@ -1,9 +1,12 @@
 import asyncio
+import logging
 from typing import Dict, List, Any
 from fastapi import WebSocket
 import redis.asyncio as redis
 import os
 import json
+
+logger = logging.getLogger(__name__)
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
@@ -13,16 +16,36 @@ class ConnectionManager:
         # active connections: room_id -> list of {ws, user_info}
         self.active: Dict[str, List[Dict[str, Any]]] = {}
         self.redis = None
+        self._redis_available = True  # assume available until proven otherwise
+        self._redis_retry_after = 0   # timestamp after which retry is allowed
 
     async def init_redis(self):
-        if not self.redis:
-            try:
-                self.redis = await redis.from_url(REDIS_URL)
-            except Exception:
-                # If Redis is not available (e.g. running locally without Docker),
-                # we will fall back to local memory broadcast only.
-                print("Warning: Redis not available, using local memory only.")
-                self.redis = None
+        """Lazy Redis connection with graceful fallback."""
+        if self.redis is not None:
+            return  # already connected
+
+        # Don't retry too frequently if Redis is down
+        import time
+        now = time.time()
+        if not self._redis_available and now < self._redis_retry_after:
+            return
+
+        try:
+            self.redis = await redis.from_url(
+                REDIS_URL,
+                socket_connect_timeout=3,
+                socket_timeout=3,
+                retry_on_timeout=False,
+            )
+            # Verify connection is actually alive
+            await self.redis.ping()
+            self._redis_available = True
+            logger.info("Redis connected successfully")
+        except Exception as e:
+            logger.warning(f"Redis not available ({e}), using local memory only")
+            self.redis = None
+            self._redis_available = False
+            self._redis_retry_after = now + 60  # retry after 60 seconds
 
     async def connect(self, websocket: WebSocket, room: str, user_info: dict = None):
         await websocket.accept()
@@ -43,24 +66,38 @@ class ConnectionManager:
                 del self.active[room]
 
     async def broadcast(self, room: str, message: str):
-        # publish to redis channel if available
+        # Try Redis publish (non-blocking, non-critical)
         await self.init_redis()
         
-        # Only try to publish to Redis if connection exists
         if self.redis:
             try:
                 channel = f"room:{room}"
                 await self.redis.publish(channel, message)
-            except Exception:
-                pass
+            except Exception as e:
+                # Redis went down mid-operation — reset for reconnect
+                logger.warning(f"Redis publish failed ({e}), falling back to local")
+                try:
+                    await self.redis.close()
+                except Exception:
+                    pass
+                self.redis = None
+                self._redis_available = False
+                import time
+                self._redis_retry_after = time.time() + 60
         
-        # local broadcast
+        # Local broadcast always runs (even if Redis fails)
         if room in self.active:
+            dead_connections = []
             for conn in self.active[room]:
                 try:
                     await conn["ws"].send_text(message)
                 except Exception:
-                    pass
+                    dead_connections.append(conn)
+            # Clean up dead connections
+            for dead in dead_connections:
+                self.active[room].remove(dead)
+            if not self.active[room]:
+                del self.active[room]
 
     def get_participants(self, room: str):
         if room not in self.active:
@@ -78,3 +115,4 @@ class ConnectionManager:
 
 
 manager = ConnectionManager()
+

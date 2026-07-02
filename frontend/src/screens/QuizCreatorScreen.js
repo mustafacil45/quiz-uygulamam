@@ -10,6 +10,8 @@ export default function QuizCreatorScreen({ route, navigation }) {
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState('Gündem')
   const [difficulty, setDifficulty] = useState('easy')
+  const [isRetakeable, setIsRetakeable] = useState(false)
+  const [scoringMode, setScoringMode] = useState('first_score')
   const [questions, setQuestions] = useState([{ text: '', choices: ['', '', '', ''], correct: 0 }])
   const [saving, setSaving] = useState(false)
 
@@ -120,7 +122,7 @@ export default function QuizCreatorScreen({ route, navigation }) {
       correct_choice: Number(q.correct),
       image_url: q.image_url
     }))
-    const payload = { title, description: category, room_id: roomId, questions: transformed }
+    const payload = { title, description: category, room_id: roomId, is_retakeable: isRetakeable, scoring_mode: scoringMode, questions: transformed }
     try {
       await svcCreateQuiz(payload)
       Alert.alert('Başarılı', 'Quiz başarıyla oluşturuldu', [{ text: 'Tamam', onPress: () => navigation.goBack() }])
@@ -193,6 +195,33 @@ export default function QuizCreatorScreen({ route, navigation }) {
           value={difficulty} 
           onChangeText={setDifficulty} 
         />
+
+        <View style={{ marginTop: 8, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#2d256b', backgroundColor: '#0f0b1b' }}>
+          <TouchableOpacity onPress={() => setIsRetakeable(v => !v)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }} activeOpacity={0.8}>
+            <View style={{ width: 22, height: 22, borderRadius: 6, backgroundColor: isRetakeable ? '#10b981' : '#151130', borderWidth: 1.2, borderColor: isRetakeable ? '#34d399' : '#2d256b', justifyContent: 'center', alignItems: 'center' }}>
+              {isRetakeable && <View style={{ width: 10, height: 10, backgroundColor: '#fff', borderRadius: 3 }} />}
+            </View>
+            <Text style={{ color: '#fff', fontWeight: '800' }}>✓ Quizi Tekrar Çözülebilir Yap</Text>
+          </TouchableOpacity>
+
+          {isRetakeable && (
+            <View style={{ marginTop: 12, paddingLeft: 8 }}>
+              <Text style={{ color: '#94a3b8', fontWeight: '800', marginBottom: 8 }}>Puanlama Modu:</Text>
+              <TouchableOpacity onPress={() => setScoringMode('first_score')} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }} activeOpacity={0.8}>
+                <View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: scoringMode === 'first_score' ? '#10b981' : '#2d256b', justifyContent: 'center', alignItems: 'center', backgroundColor: scoringMode === 'first_score' ? '#10b981' : '#151130' }}>
+                  {scoringMode === 'first_score' && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#fff' }} />}
+                </View>
+                <Text style={{ color: '#c7f9d6', fontWeight: '800' }}>📍 İlk Çözülen Puan (First Score)</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setScoringMode('best_score')} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }} activeOpacity={0.8}>
+                <View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: scoringMode === 'best_score' ? '#f59e0b' : '#2d256b', justifyContent: 'center', alignItems: 'center', backgroundColor: scoringMode === 'best_score' ? '#f59e0b' : '#151130' }}>
+                  {scoringMode === 'best_score' && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#fff' }} />}
+                </View>
+                <Text style={{ color: '#fce7a9', fontWeight: '800' }}>🏆 En Yüksek Puan (Best Score)</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       </View>
 
       <Text style={styles.sectionTitle}>Sorular</Text>
