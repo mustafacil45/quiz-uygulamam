@@ -13,6 +13,9 @@ export interface Quiz {
   title: string;
   description: string;
   room_id: number;
+  is_featured?: boolean;
+  is_retakeable?: boolean;
+  scoring_mode?: string;
   questions: Question[];
 }
 
@@ -21,6 +24,8 @@ export interface QuizCreate {
   description: string;
   room_id: number | null;
   is_featured?: boolean;
+  is_retakeable?: boolean;
+  scoring_mode?: string;
   questions: Question[];
 }
 
