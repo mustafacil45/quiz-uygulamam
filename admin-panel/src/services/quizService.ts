@@ -3,6 +3,7 @@ import api from './api';
 export interface Question {
   id?: number;
   text: string;
+  image_url?: string;
   choices: string[];
   correct_choice: number;
 }
