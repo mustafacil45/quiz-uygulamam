@@ -1,10 +1,12 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
 
-// Production'da NEXT_PUBLIC_API_URL env variable kullanılır
-// Vercel dashboard'dan: NEXT_PUBLIC_API_URL=https://trendquiz-api.onrender.com/api
-// Local dev fallback: http://127.0.0.1:8000/api
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
+// Panel, backend ile aynı sunucudan "/admin" altında yayınlanır; bu yüzden
+// production build'de API aynı origin'den ("/api") çağrılır, CORS gerekmez.
+// Geliştirmede yerel backend'e gider. NEXT_PUBLIC_API_URL ile ezilebilir.
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === 'production' ? '/api' : 'http://127.0.0.1:8000/api');
 
 const api = axios.create({
   baseURL: API_BASE,

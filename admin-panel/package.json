@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "build:backend": "next build && rm -rf ../backend/static/admin && mkdir -p ../backend/static/admin && cp -R out/. ../backend/static/admin/"
   },
   "dependencies": {
     "axios": "^1.13.2",
