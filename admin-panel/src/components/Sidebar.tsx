@@ -24,7 +24,7 @@ export default function Sidebar() {
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {menuItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href;
+          const isActive = (pathname || '').replace(/\/+$/, '') === item.href.replace(/\/+$/, '');
           return (
             <Link
               key={item.href}

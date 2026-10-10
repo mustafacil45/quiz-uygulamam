@@ -4,6 +4,12 @@ import { useRouter, usePathname } from 'next/navigation';
 import Cookies from 'js-cookie';
 import api from '@/services/api';
 
+// "/login/" ve "/login" ayni sayilsin (next.config trailingSlash)
+function normalizePath(p: string | null): string {
+  if (!p) return '/';
+  return p.length > 1 ? p.replace(/\/+$/, '') : p;
+}
+
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -12,7 +18,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     const token = Cookies.get('admin_token');
-    const isLoginPage = pathname === '/login';
+    // trailingSlash acikken usePathname "/login/" doner; sondaki "/" normalize edilir
+    const isLoginPage = normalizePath(pathname) === '/login';
 
     if (!token && !isLoginPage) {
       router.push('/login');
