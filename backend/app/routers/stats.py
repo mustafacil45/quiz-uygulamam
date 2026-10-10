@@ -21,11 +21,10 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
     res_room = await db.execute(select(func.count(models.Room.id)))
     active_rooms = res_room.scalar() or 0
 
-    res_r = await db.execute(select(func.count(models.Room.id)))
-    active_rooms = res_r.scalar() or 0
-    
-    # Total Users
-    res_u = await db.execute(select(func.count(models.User.id)))
+    # Total Users (kapatilmis hesaplar sayilmaz)
+    res_u = await db.execute(
+        select(func.count(models.User.id)).where(models.User.is_active.isnot(False))
+    )
     total_users = res_u.scalar() or 0
 
     # Recent activities
@@ -59,6 +58,7 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
     return {
         "total_quizzes": total_quizzes,
         "active_rooms": active_rooms,
+        "total_users": total_users,
         "system_status": "Online",
         "uptime": uptime_seconds,
         "recent_activities": activities[:5]
