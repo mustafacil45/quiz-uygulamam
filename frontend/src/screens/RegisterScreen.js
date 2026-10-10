@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { View, Text, TextInput, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native'
+import { View, Text, TextInput, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { MaterialIcons } from '@expo/vector-icons'
 import api from '../api/client'
@@ -9,16 +9,34 @@ export default function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   const register = async () => {
+    const name = username.trim()
+    const mail = email.trim()
+
+    if (name.length < 3) { Alert.alert('Eksik Bilgi', 'Kullanıcı adı en az 3 karakter olmalı.'); return }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) { Alert.alert('Eksik Bilgi', 'Geçerli bir e-posta adresi gir.'); return }
+    if (password.length < 6) { Alert.alert('Zayıf Şifre', 'Şifre en az 6 karakter olmalı.'); return }
+
+    setSaving(true)
     try {
-      const res = await api.post('/api/auth/register', { username, email, password })
+      const res = await api.post('/api/auth/register', { username: name, email: mail, password })
       console.log('registered', res.data)
-      Alert.alert('Kayıt', 'Kayıt başarılı, lütfen giriş yapın')
+      Alert.alert('Kayıt Başarılı', 'Hesabın oluşturuldu, şimdi giriş yapabilirsin.')
       navigation.navigate('Login')
     } catch (err) {
-      console.warn(err?.response?.data || err.message)
-      Alert.alert('Kayıt Hatası', 'Kayıt sırasında hata oluştu')
+      // Gercek sebebi goster: "bu e-posta kayitli", "sunucuya ulasilamiyor" vb.
+      const detail = err?.response?.data?.detail
+      const message = typeof detail === 'string'
+        ? detail
+        : err?.response
+          ? 'Kayıt yapılamadı, lütfen bilgilerini kontrol et.'
+          : 'Sunucuya ulaşılamıyor. İnternet bağlantını kontrol edip tekrar dene.'
+      console.warn('register error:', detail || err.message)
+      Alert.alert('Kayıt Hatası', message)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -74,8 +92,8 @@ export default function RegisterScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.primaryButton} onPress={register} activeOpacity={0.85}>
-              <Text style={styles.primaryButtonText}>Kayıt Ol</Text>
+            <TouchableOpacity style={[styles.primaryButton, saving && styles.disabled]} onPress={register} disabled={saving} activeOpacity={0.85}>
+              {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Kayıt Ol</Text>}
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.secondaryButton} onPress={() => navigation.navigate('Login')} activeOpacity={0.8}>
@@ -143,5 +161,6 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },
   secondaryButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
+  disabled: { opacity: 0.6 },
   secondaryButtonText: { color: '#ec4899', fontSize: 14, fontWeight: '800' },
 })

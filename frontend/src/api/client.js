@@ -57,10 +57,13 @@ try {
   const explicit = getExpoExtraApiBase()
   if (explicit) API_BASE = explicit
 
-  // EAS build: EXPO_PUBLIC_API_BASE env variable (set in eas.json)
-  if (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_BASE) {
-    API_BASE = process.env.EXPO_PUBLIC_API_BASE
-  }
+  // EAS build: EXPO_PUBLIC_API_BASE (eas.json'daki build profilinden gelir).
+  // ONEMLI: "process.env.X" DUZ erisimle yazilmali. Metro yalnizca bu bicimi
+  // derleme sirasinda gercek degerle degistirir; "process.env?.X" (opsiyonel
+  // zincir) degistirilmez ve derlenmis uygulamada undefined kalir -> adres
+  // varsayilan 127.0.0.1'de takilir ve uygulama sunucuya hic ulasamaz.
+  const envApiBase = process.env.EXPO_PUBLIC_API_BASE
+  if (envApiBase) API_BASE = envApiBase
 } catch (e) {}
 
 

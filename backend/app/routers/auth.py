@@ -18,7 +18,14 @@ async def register(user: schemas.UserCreate, db: AsyncSession = Depends(get_db))
     res = await db.execute(select(models.User).where((models.User.username == user.username) | (models.User.email == user.email)))
     existing = res.scalar_one_or_none()
     if existing:
-        raise HTTPException(status_code=400, detail="User already exists")
+        # Hangi alanin cakistigini soyle ki kullanici ne degistirecegini bilsin
+        if existing.username == user.username:
+            raise HTTPException(status_code=400, detail="Bu kullanıcı adı zaten alınmış, başka bir tane dene.")
+        raise HTTPException(status_code=400, detail="Bu e-posta ile zaten bir hesap var. Giriş yapmayı dene.")
+    if len(user.password) < 6:
+        raise HTTPException(status_code=422, detail="Şifre en az 6 karakter olmalı.")
+    if len(user.username.strip()) < 3:
+        raise HTTPException(status_code=422, detail="Kullanıcı adı en az 3 karakter olmalı.")
     hashed = security.get_password_hash(user.password)
     new = models.User(username=user.username, email=user.email, hashed_password=hashed)
     db.add(new)
