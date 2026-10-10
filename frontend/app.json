@@ -9,11 +9,13 @@
       "web"
     ],
     "extra": {
-      "API_BASE": ""
+      "API_BASE": "",
+      "eas": {
+        "projectId": "047b8ff2-57f9-4f61-a5e9-318784012e09"
+      }
     },
     "ios": {
       "bundleIdentifier": "com.trendquiz.app",
-      "buildNumber": "1",
       "supportsTablet": false,
       "infoPlist": {
         "NSAppTransportSecurity": {
@@ -44,7 +46,8 @@
         "expo-image-picker",
         {
           "photosPermission": "Profil fotoğrafı ve soru görseli seçmek için galerine erişmek istiyoruz.",
-          "cameraPermission": "Profil fotoğrafı çekmek için kameraya erişmek istiyoruz."
+          "cameraPermission": "Profil fotoğrafı çekmek için kameraya erişmek istiyoruz.",
+          "microphonePermission": false
         }
       ],
       [
@@ -63,6 +66,7 @@
     "primaryColor": "#8b5cf6",
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "owner": "mustafacil4545"
   }
 }
