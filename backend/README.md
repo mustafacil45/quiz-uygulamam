@@ -4,10 +4,38 @@ FastAPI backend for TrendQuiz.
 
 Folder: `app/` contains the FastAPI application.
 
-Run locally (after installing requirements):
+Requires Python 3.11+ (3.12 recommended locally; Docker/CI use 3.11).
+
+Setup (from `backend/`):
 
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+make venv            # python3.12 -m venv venv && pip install -r requirements.txt
+make run             # uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Or manually:
+
+```bash
+python3.12 -m venv venv
+venv/bin/pip install -r requirements.txt
+venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Without `DATABASE_URL` the app uses SQLite (`backend/dev.db`) and creates
+tables on startup. Set `DATABASE_URL=postgresql://...` for Postgres (Alembic
+migrations are used there, see below). Redis is optional; without `REDIS_URL`
+the app falls back to in-memory state.
+
+Note: if you move or rename the project folder, the venv breaks (its scripts
+hardcode the absolute path). Delete `venv/` and run `make venv` again.
+
+Note: `create_all()` only creates missing tables; it never adds columns to an
+existing `dev.db`. After a model change, either delete `dev.db` (fresh start)
+or apply the migration to it:
+
+```bash
+DATABASE_URL="sqlite+aiosqlite:///$PWD/dev.db" venv/bin/alembic -c alembic.ini upgrade head
+# first time only, if dev.db predates alembic: ... alembic -c alembic.ini stamp <last applied revision>
 ```
 
 CI / Migrations
@@ -17,30 +45,19 @@ This project uses Alembic for schema migrations. There is a GitHub Actions workf
 
 Locally you can:
 
-1. Create a virtualenv and install deps:
-
-```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-2. Create the DB (quick dev):
+1. Create the DB (quick dev):
 
 ```bash
 python init_db.py
 ```
 
-3. Create an Alembic revision (autogenerate):
+2. Create an Alembic revision (autogenerate):
 
 ```bash
-# from repo root
-cd backend
 alembic -c alembic.ini revision --autogenerate -m "your message"
 ```
 
-4. Apply migrations:
+3. Apply migrations:
 
 ```bash
 alembic -c alembic.ini upgrade head
@@ -54,5 +71,4 @@ In CI (GitHub Actions) the workflow will:
 - install backend deps
 - run `alembic -c alembic.ini upgrade head`
 
-Makefile targets are provided under `backend/Makefile` for convenience (`make -C backend migrate`, `make -C backend init-db`).
-
+Makefile targets are provided under `backend/Makefile` for convenience (`make -C backend migrate`, `make -C backend init-db`, `make -C backend alembic-rev MIGRATION_MSG="..."`).

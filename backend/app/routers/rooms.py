@@ -13,7 +13,7 @@ router = APIRouter()
 async def create_room(payload: schemas.RoomCreate, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     # diagnostics logging
     try:
-        print('[DEBUG] POST /api/rooms/ payload:', payload.dict())
+        print('[DEBUG] POST /api/rooms/ payload:', payload.model_dump())
     except Exception:
         print('[DEBUG] POST /api/rooms/ payload: <unserializable>')
     # validate

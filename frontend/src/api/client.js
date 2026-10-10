@@ -68,7 +68,21 @@ console.log('[API BASE]', API_BASE)
 
 export { API_BASE }
 
-const api = axios.create({ baseURL: API_BASE, timeout: 10000 })
+// Render ucretsiz katmani 15 dk hareketsizlikte uyur; uyanmasi ~1 dk surebilir.
+// Bu yuzden zaman asimi genis tutulur ve ag/zaman asimi hatalarinda otomatik yeniden denenir.
+const REQUEST_TIMEOUT_MS = 20000
+const MAX_RETRIES = 2
+const RETRY_DELAY_MS = 1500
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const api = axios.create({ baseURL: API_BASE, timeout: REQUEST_TIMEOUT_MS })
+
+// Uygulama acilirken sunucuyu uyandir (cevabi beklemeyiz)
+export function wakeServer() {
+  fetch(`${API_BASE}/health`).catch(() => {})
+}
+wakeServer()
 
 // attach access token from AsyncStorage and log requests
 api.interceptors.request.use(async (config) => {
@@ -115,6 +129,18 @@ api.interceptors.response.use(
   },
   async (err) => {
     const originalRequest = err.config
+
+    // Sunucu uykudaysa cevap hic gelmez ya da zaman asimina ugrar: birkac kez dene
+    const isNetworkOrTimeout = !err.response || err.code === 'ECONNABORTED'
+    if (isNetworkOrTimeout && originalRequest) {
+      originalRequest._retryCount = (originalRequest._retryCount || 0) + 1
+      if (originalRequest._retryCount <= MAX_RETRIES) {
+        console.log('[API RETRY]', originalRequest._retryCount, originalRequest.url)
+        await sleep(RETRY_DELAY_MS)
+        return api(originalRequest)
+      }
+    }
+
     // log error response if present
     if (err.response) {
       console.error('[API ERROR]', originalRequest?.method?.toUpperCase(), originalRequest?.url, 'status=', err.response.status, 'data=', err.response.data)

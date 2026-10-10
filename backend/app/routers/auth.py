@@ -37,6 +37,8 @@ async def token(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
     if not security.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
+    if user.is_active is False:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bu hesap kapatılmış")
     access_token = security.create_access_token({"sub": user.username})
     refresh_token = security.create_refresh_token({"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer", "refresh_token": refresh_token}
@@ -48,6 +50,8 @@ async def admin_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Asyn
     user = res.scalar_one_or_none()
     if not user or not security.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
+    if user.is_active is False:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bu hesap kapatılmış")
     if not security.is_admin_user(user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
 
@@ -77,7 +81,7 @@ async def refresh(payload: dict, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid token")
     res = await db.execute(select(models.User).where(models.User.username == username))
     user = res.scalar_one_or_none()
-    if not user:
+    if not user or user.is_active is False:
         raise HTTPException(status_code=401, detail="User not found")
     access_token = security.create_access_token({"sub": user.username})
     refresh_token = security.create_refresh_token({"sub": user.username})

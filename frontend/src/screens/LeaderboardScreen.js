@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { View, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-native'
 import api from '../api/client'
 import { Ionicons } from '@expo/vector-icons'
+import Avatar from '../components/Avatar'
 
 export default function LeaderboardScreen() {
   const [users, setUsers] = useState([])
@@ -48,6 +49,7 @@ export default function LeaderboardScreen() {
         <View style={styles.rankContainer}>
           {icon}
         </View>
+        <Avatar uri={item.avatar_url} name={item.username} size={40} borderColor={rankColor} style={styles.avatar} />
         <View style={styles.info}>
           <Text style={styles.username}>{item.username}</Text>
         </View>
@@ -107,6 +109,7 @@ const styles = StyleSheet.create({
   rankContainer: { width: 36, alignItems: 'center', justifyContent: 'center' },
   rankText: { fontSize: 14, fontWeight: '900' },
   info: { flex: 1, paddingHorizontal: 16 },
+  avatar: { marginRight: 12 },
   username: { fontSize: 16, fontWeight: '800', color: '#ffffff' },
   scoreContainer: { alignItems: 'flex-end' },
   score: { fontSize: 18, fontWeight: '900', color: '#d946ef' },

@@ -21,6 +21,7 @@ class User(Base):
     username = Column(String(128), unique=True, index=True, nullable=False)
     email = Column(String(256), unique=True, index=True, nullable=False)
     hashed_password = Column(String(256), nullable=False)
+    avatar_url = Column(String(512), nullable=True)  # /static/uploads/... veya tam URL
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

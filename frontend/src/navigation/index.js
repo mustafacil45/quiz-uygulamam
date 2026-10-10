@@ -12,6 +12,9 @@ import MyResultsScreen from '../screens/MyResultsScreen'
 import MyRoomsScreen from '../screens/MyRoomsScreen'
 import TabNavigator from './TabNavigator'
 import CertificateScreen from '../screens/CertificateScreen'
+import EditProfileScreen from '../screens/EditProfileScreen'
+import ChangePasswordScreen from '../screens/ChangePasswordScreen'
+import SettingsScreen from '../screens/SettingsScreen'
 
 const Stack = createNativeStackNavigator()
 
@@ -49,6 +52,11 @@ export default function RootStack() {
       <Stack.Screen name="MyResults" component={MyResultsScreen} options={{ title: 'Sonuçlarım' }} />
       <Stack.Screen name="MyRooms" component={MyRoomsScreen} options={{ title: 'Odalarım' }} />
       <Stack.Screen name="Certificate" component={CertificateScreen} options={{ title: 'Sertifika', headerShown: false }} />
+
+      {/* Profil & ayarlar */}
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Profili Düzenle' }} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: 'Şifre Değiştir' }} />
+      <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Uygulama Ayarları' }} />
     </Stack.Navigator>
   )
 }

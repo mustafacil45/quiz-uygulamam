@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 
 class Token(BaseModel):
@@ -18,12 +18,29 @@ class UserCreate(BaseModel):
 
 
 class UserOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     username: str
     email: EmailStr
+    avatar_url: Optional[str] = None
 
-    class Config:
-        orm_mode = True
+
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    email: Optional[EmailStr] = None
+    avatar_url: Optional[str] = None  # None = dokunma, "" = fotoğrafı kaldır
+
+
+class UserUpdateOut(UserOut):
+    # Kullanıcı adı değişirse token'daki "sub" eskir; yeni token'lar döner
+    access_token: Optional[str] = None
+    refresh_token: Optional[str] = None
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
 
 class QuestionCreate(BaseModel):
     text: str
@@ -33,14 +50,13 @@ class QuestionCreate(BaseModel):
 
 
 class QuestionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     text: str
     image_url: Optional[str] = None
     choices: List[str]
     correct_choice: int
-
-    class Config:
-        orm_mode = True
 
 
 class RoomCreate(BaseModel):
@@ -49,21 +65,20 @@ class RoomCreate(BaseModel):
 
 
 class RoomOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     code: Optional[str] = None
-    host_id: Optional[int]
+    host_id: Optional[int] = None
     is_private: bool
     participant_count: int = 0
     quizzes: List['QuizOut'] = []
 
-    class Config:
-        orm_mode = True
-
 
 class QuizCreate(BaseModel):
     title: str
-    description: Optional[str]
+    description: Optional[str] = None
     room_id: Optional[int] = None
     is_featured: bool = False
     is_retakeable: bool = False
@@ -72,20 +87,16 @@ class QuizCreate(BaseModel):
 
 
 class QuizOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     title: str
-    description: Optional[str]
-    room_id: Optional[int]
+    description: Optional[str] = None
+    room_id: Optional[int] = None
     is_featured: bool
     is_retakeable: bool = False
     scoring_mode: str = "first_score"
     questions: List[QuestionOut] = []
-
-    class Config:
-        orm_mode = True
-
-
-# duplicate QuizOut removed (detailed QuizOut above)
 
 
 class ResultCreate(BaseModel):
@@ -93,19 +104,18 @@ class ResultCreate(BaseModel):
     answers: str # JSON string
 
 class ResultOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     user_id: int
     quiz_id: int
     score: int
-    answers: Optional[str]
-    created_at: Optional[str] # datetime string
-
-    class Config:
-        orm_mode = True
+    answers: Optional[str] = None
+    created_at: Optional[str] = None # datetime string
 
 # Resolve forward refs
-RoomOut.update_forward_refs()
-QuizOut.update_forward_refs()
+RoomOut.model_rebuild()
+QuizOut.model_rebuild()
 
 
 class AnswerSubmit(BaseModel):

@@ -61,7 +61,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         raise credentials_exception
     res = await db.execute(select(models.User).where(models.User.username == username))
     user = res.scalar_one_or_none()
-    if user is None:
+    if user is None or user.is_active is False:
         raise credentials_exception
     return user
 
@@ -89,6 +89,6 @@ async def get_current_admin(token: str = Depends(oauth2_scheme), db: AsyncSessio
 
     res = await db.execute(select(models.User).where(models.User.username == username))
     user = res.scalar_one_or_none()
-    if user is None or not is_admin_user(user):
+    if user is None or user.is_active is False or not is_admin_user(user):
         raise credentials_exception
     return user

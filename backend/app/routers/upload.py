@@ -6,14 +6,26 @@ from typing import Optional
 
 router = APIRouter()
 
-UPLOAD_DIR = "static/uploads"
+# Render/Heroku gibi platformlarda dosya sistemi geçicidir: her deploy'da yüklenen
+# görseller silinir. Kalıcı disk (ör. Render Disk) bağlanırsa UPLOAD_DIR env'i ile
+# oraya yönlendirilir; verilen URL ("/static/uploads/...") değişmez.
+_BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+UPLOAD_DIR = os.getenv("UPLOAD_DIR") or os.path.join(_BACKEND_DIR, "static", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic"}
 
 @router.post("/")
 async def upload_file(file: UploadFile = File(...)):
+    # Soru görselleri ve profil fotoğrafları için kullanılır; yalnızca görsel kabul edilir
+    file_ext = os.path.splitext(file.filename or "")[1].lower()
+    is_image_type = (file.content_type or "").startswith("image/")
+    if not is_image_type and file_ext not in ALLOWED_IMAGE_EXT:
+        raise HTTPException(status_code=415, detail="Yalnızca görsel dosyaları yüklenebilir")
+    if file_ext not in ALLOWED_IMAGE_EXT:
+        file_ext = ".jpg"
     try:
         # Generate a unique filename
-        file_ext = os.path.splitext(file.filename)[1]
         unique_filename = f"{uuid.uuid4()}{file_ext}"
         file_path = os.path.join(UPLOAD_DIR, unique_filename)
         

@@ -3,6 +3,7 @@ import React, { useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, Share } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import ViewShot from 'react-native-view-shot';
+import Avatar from '../components/Avatar';
 
 export default function CertificateScreen({ route, navigation }) {
     const { result, user } = route.params;
@@ -46,6 +47,7 @@ export default function CertificateScreen({ route, navigation }) {
                     </View>
 
                     <Text style={styles.presented}>Bu sertifika</Text>
+                    <Avatar uri={user?.avatar_url} name={user?.username} size={88} borderColor={color} style={styles.avatar} />
                     <Text style={[styles.name, { color: color }]}>{user?.username || 'Kullanıcı'}</Text>
                     <Text style={styles.presented}>adlı kullanıcıya</Text>
 
@@ -95,6 +97,7 @@ const styles = StyleSheet.create({
     header: { alignItems: 'center', marginBottom: 20 },
     title: { fontSize: 24, fontWeight: '900', color: '#2c3e50', marginTop: 10, letterSpacing: 2 },
     presented: { fontSize: 16, color: '#7f8c8d', marginVertical: 5 },
+    avatar: { marginTop: 6, marginBottom: 4, borderWidth: 3 },
     name: { fontSize: 28, fontWeight: 'bold', marginVertical: 10, textTransform: 'uppercase' },
     quizInfo: { alignItems: 'center', marginVertical: 15 },
     quizTitle: { fontSize: 20, fontWeight: '600', color: '#34495e', textAlign: 'center' },

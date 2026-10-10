@@ -49,6 +49,10 @@ from app.routers import upload
 app.include_router(upload.router, prefix="/api/upload", tags=["upload"])
 
 # Mount static for uploads
+# Yüklenen görseller ayrı mount: UPLOAD_DIR kalıcı bir diske taşınsa da
+# "/static/uploads/..." adresleri çalışmaya devam eder (sıra önemli).
+from app.routers.upload import UPLOAD_DIR as _UPLOAD_DIR
+app.mount("/static/uploads", StaticFiles(directory=_UPLOAD_DIR), name="uploads")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 

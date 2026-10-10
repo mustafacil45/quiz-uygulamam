@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import api from '../api/client';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import Avatar from '../components/Avatar';
 
 export default function DashboardScreen({ navigation }) {
     const [stats, setStats] = useState(null);
@@ -61,9 +62,9 @@ export default function DashboardScreen({ navigation }) {
                         <Text style={styles.greeting}>HOŞ GELDİN, ŞAMPİYON ⚡</Text>
                         <Text style={styles.username} numberOfLines={2}>{user?.username || 'Oyuncu'}</Text>
                     </View>
-                    <View style={styles.avatarGlow}>
-                        <Ionicons name="person-circle-outline" size={64} color="#a78bfa" />
-                    </View>
+                    <TouchableOpacity style={styles.avatarGlow} onPress={() => navigation.navigate('Profile')} activeOpacity={0.85}>
+                        <Avatar uri={user?.avatar_url} name={user?.username} size={64} borderColor="#a78bfa" />
+                    </TouchableOpacity>
                 </View>
 
                 {/* Stat Cards */}

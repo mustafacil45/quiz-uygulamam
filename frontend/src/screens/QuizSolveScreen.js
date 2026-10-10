@@ -3,10 +3,14 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Ani
 import services from '../api/services'
 import api from '../api/client'
 import { Ionicons } from '@expo/vector-icons'
+import * as Haptics from 'expo-haptics'
+import { loadSettings } from '../utils/settings'
 
 export default function QuizSolveScreen({ route, navigation }) {
   const { quizId, isRetake } = route.params || {}
   const [quiz, setQuiz] = useState(null)
+  const hapticsRef = useRef(true) // Uygulama Ayarları > Titreşim
+  useEffect(() => { loadSettings().then((s) => { hapticsRef.current = s.haptics }) }, [])
   const [loading, setLoading] = useState(true)
 
   // Quiz State
@@ -80,6 +84,11 @@ export default function QuizSolveScreen({ route, navigation }) {
       })
 
       const data = res.data
+      if (hapticsRef.current) {
+        Haptics.notificationAsync(
+          data.correct ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error
+        ).catch(() => {})
+      }
       if (isRetake) {
         setTotalScore(prev => prev + data.score)
       } else {

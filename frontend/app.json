@@ -3,25 +3,66 @@
     "name": "TrendQuiz",
     "slug": "trendquiz",
     "version": "1.0.0",
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "extra": {
       "API_BASE": ""
     },
     "ios": {
       "bundleIdentifier": "com.trendquiz.app",
+      "buildNumber": "1",
+      "supportsTablet": false,
       "infoPlist": {
         "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": true
-        }
+          "NSAllowsLocalNetworking": true
+        },
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "com.trendquiz.app",
+      "versionCode": 1,
       "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#090816"
-      },
-      "usesCleartextTraffic": true
+      }
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Profil fotoğrafı ve soru görseli seçmek için galerine erişmek istiyoruz.",
+          "cameraPermission": "Profil fotoğrafı çekmek için kameraya erişmek istiyoruz."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "backgroundColor": "#090816",
+          "resizeMode": "contain"
+        }
+      ]
+    ],
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "icon": "./assets/icon.png",
+    "primaryColor": "#8b5cf6",
+    "web": {
+      "favicon": "./assets/favicon.png"
     }
   }
 }
-

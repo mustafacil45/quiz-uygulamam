@@ -15,7 +15,7 @@ router = APIRouter()
 @router.post("/", response_model=schemas.QuizOut)
 async def create_quiz(payload: schemas.QuizCreate, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     try:
-        print('[DEBUG] POST /api/quiz/ payload:', payload.dict())
+        print('[DEBUG] POST /api/quiz/ payload:', payload.model_dump())
     except Exception:
         print('[DEBUG] POST /api/quiz/ payload: <unserializable>')
     # basic validation

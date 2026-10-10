@@ -1,24 +1,43 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import api from '../api/client';
 import { Ionicons } from '@expo/vector-icons';
+import Avatar from '../components/Avatar';
+import { clearSession } from '../utils/settings';
+
+function MenuItem({ icon, color, bg, label, onPress }) {
+  return (
+    <TouchableOpacity style={styles.item} activeOpacity={0.8} onPress={onPress}>
+      <View style={[styles.iconWrap, { backgroundColor: bg }]}>
+        <Ionicons name={icon} size={20} color={color} />
+      </View>
+      <Text style={styles.itemText}>{label}</Text>
+      <Ionicons name="chevron-forward" size={20} color="#64748b" />
+    </TouchableOpacity>
+  );
+}
 
 export default function ProfileScreen({ navigation }) {
   const [user, setUser] = useState(null);
 
-  useEffect(() => {
-    api.get('/api/users/me')
-      .then(res => setUser(res.data))
-      .catch(err => console.log(err));
-  }, []);
+  // Düzenleme ekranından dönünce güncel bilgiyi göster
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      api.get('/api/users/me')
+        .then(res => { if (active) setUser(res.data); })
+        .catch(err => console.log(err));
+      return () => { active = false; };
+    }, [])
+  );
 
   const handleLogout = async () => {
     try {
-      await AsyncStorage.removeItem('token');
+      await clearSession();
       navigation.reset({
         index: 0,
-        routes: [{ name: 'Login' }],
+        routes: [{ name: 'Welcome' }],
       });
     } catch (e) {
       console.log('Logout error', e);
@@ -30,47 +49,60 @@ export default function ProfileScreen({ navigation }) {
       {/* Header Profile Card */}
       <View style={styles.header}>
         <View style={styles.headerPulse} />
-        <View style={styles.avatarGlow}>
-          <View style={styles.avatar}>
-            <Ionicons name="person" size={54} color="#ffffff" />
+        <TouchableOpacity
+          style={styles.avatarGlow}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('EditProfile', { user })}
+        >
+          <Avatar uri={user?.avatar_url} name={user?.username} size={96} borderColor="#ec4899" />
+          <View style={styles.editBadge}>
+            <Ionicons name="camera" size={14} color="#ffffff" />
           </View>
-        </View>
+        </TouchableOpacity>
         <Text style={styles.username}>{user?.username || 'Kullanıcı'}</Text>
-        <Text style={styles.email}>{user?.email || 'email@example.com'}</Text>
+        <Text style={styles.email}>{user?.email || ''}</Text>
       </View>
 
-      {/* Settings Grid */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>HESAP AYARLARI</Text>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>HESAP AYARLARI</Text>
 
-        <TouchableOpacity style={styles.item} activeOpacity={0.8}>
-          <View style={[styles.iconWrap, { backgroundColor: 'rgba(139, 92, 246, 0.15)' }]}>
-            <Ionicons name="key-outline" size={20} color="#a78bfa" />
-          </View>
-          <Text style={styles.itemText}>Şifre Değiştir</Text>
-          <Ionicons name="chevron-forward" size={20} color="#64748b" />
+          <MenuItem
+            icon="person-outline"
+            color="#f9a8d4"
+            bg="rgba(236, 72, 153, 0.15)"
+            label="Profili Düzenle"
+            onPress={() => navigation.navigate('EditProfile', { user })}
+          />
+          <MenuItem
+            icon="key-outline"
+            color="#a78bfa"
+            bg="rgba(139, 92, 246, 0.15)"
+            label="Şifre Değiştir"
+            onPress={() => navigation.navigate('ChangePassword')}
+          />
+          <MenuItem
+            icon="settings-outline"
+            color="#22d3ee"
+            bg="rgba(6, 182, 212, 0.15)"
+            label="Uygulama Ayarları"
+            onPress={() => navigation.navigate('Settings')}
+          />
+        </View>
+
+        {/* Logout Button */}
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.85}>
+          <Ionicons name="log-out-outline" size={22} color="#fca5a5" />
+          <Text style={styles.logoutText}>Oturumu Kapat</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity style={styles.item} activeOpacity={0.8}>
-          <View style={[styles.iconWrap, { backgroundColor: 'rgba(6, 182, 212, 0.15)' }]}>
-            <Ionicons name="settings-outline" size={20} color="#22d3ee" />
-          </View>
-          <Text style={styles.itemText}>Uygulama Ayarları</Text>
-          <Ionicons name="chevron-forward" size={20} color="#64748b" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Logout Button */}
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.85}>
-        <Ionicons name="log-out-outline" size={22} color="#fca5a5" />
-        <Text style={styles.logoutText}>Oturumu Kapat</Text>
-      </TouchableOpacity>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#090816' },
+  scroll: { flexGrow: 1 },
   header: {
     backgroundColor: '#110d29',
     alignItems: 'center',
@@ -97,15 +129,12 @@ const styles = StyleSheet.create({
     elevation: 8,
     marginBottom: 16
   },
-  avatar: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: '#8b5cf6',
-    borderWidth: 2.5,
-    borderColor: '#ec4899',
-    justifyContent: 'center',
-    alignItems: 'center',
+  editBadge: {
+    position: 'absolute', right: 0, bottom: 0,
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: '#ec4899',
+    borderWidth: 2, borderColor: '#110d29',
+    alignItems: 'center', justifyContent: 'center',
   },
   username: { color: '#ffffff', fontSize: 24, fontWeight: '800', letterSpacing: 0.5 },
   email: { color: '#94a3b8', fontSize: 13, marginTop: 4, fontWeight: '500' },
